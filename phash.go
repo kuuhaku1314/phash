@@ -18,8 +18,6 @@ const (
 	Height = 32
 )
 
-var GammaDividend = 1 + math.Pow(1.5, 2.2) + math.Pow(0.6, 2.2)
-
 func GetImageSimilarity(srcPath, destPath string) (int, error) {
 	var (
 		srcImage  image.Image
@@ -97,26 +95,16 @@ func grayingImage(img image.Image) image.Image {
 	rgba := image.NewRGBA(img.Bounds())
 	for i := 0; i < img.Bounds().Dy(); i++ {
 		for j := 0; j < img.Bounds().Dx(); j++ {
-			r, g, b, a := img.At(j, i).RGBA()
-			grayValue := convert2Gray(uint8(r>>8), uint8(g>>8), uint8(b>>8))
+			r, g, b, a := color.GrayModel.Convert(img.At(j, i)).RGBA()
 			rgba.SetRGBA(j, i, color.RGBA{
-				R: grayValue,
-				G: grayValue,
-				B: grayValue,
+				R: uint8(r >> 8),
+				G: uint8(g >> 8),
+				B: uint8(b >> 8),
 				A: uint8(a >> 8),
 			})
 		}
 	}
 	return rgba
-}
-
-// Standard gamma correction, the gray image generated has black blocks, and the reason is unknown
-func gamma(r, g, b uint8) uint8 {
-	return uint8(math.Pow((math.Pow(float64(r), 2.2)+math.Pow(float64(g)*1.5, 2.2)+math.Pow(float64(b)*1.5, 2.2))/GammaDividend, 1/2.2))
-}
-
-func convert2Gray(r, g, b uint8) uint8 {
-	return uint8(float32(r)*0.299 + float32(g)*0.587 + float32(b)*0.114)
 }
 
 func grayMatrix(img image.Image) *[Height][Width]float64 {
@@ -160,33 +148,6 @@ func dct(DCTMatrix, Matrix *[Height][Width]float64, M, N int) {
 					(*DCTMatrix)[u][v] += (*Matrix)[i][j] * math.Cos(math.Pi/(float64(N))*(float64(i)+1./2.)*float64(u)) * math.Cos(math.Pi/(float64(M))*(float64(j)+1./2.)*float64(v))
 				}
 			}
-		}
-	}
-}
-
-func idct(DCTMatrix, Matrix *[][]float64, M, N int) {
-	var (
-		i = 0
-		j = 0
-		u = 0
-		v = 0
-	)
-	for u = 0; u < N; u++ {
-		for v = 0; v < M; v++ {
-			(*Matrix)[u][v] = 1 / 4. * (*DCTMatrix)[0][0]
-			for i = 1; i < N; i++ {
-				(*Matrix)[u][v] += 1 / 2. * (*DCTMatrix)[i][0]
-			}
-			for j = 1; j < M; j++ {
-				(*Matrix)[u][v] += 1 / 2. * (*DCTMatrix)[0][j]
-			}
-
-			for i = 1; i < N; i++ {
-				for j = 1; j < M; j++ {
-					(*Matrix)[u][v] += (*DCTMatrix)[i][j] * math.Cos(math.Pi/(float64(N))*(float64(u)+1./2.)*float64(i)) * math.Cos(math.Pi/(float64(M))*(float64(v)+1./2.)*float64(j))
-				}
-			}
-			(*Matrix)[u][v] *= 2. / (float64(N)) * 2. / (float64(M))
 		}
 	}
 }
