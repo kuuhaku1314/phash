@@ -60,13 +60,20 @@ func decodeImage(imagePath string) (decodedImage image.Image, err error) {
 }
 
 func imageSimilarity(srcImage, destImage image.Image) int {
-	srcHash := pHash(srcImage)
-	dstHash := pHash(destImage)
-	return ((8*8 - hmDistance(srcHash, dstHash)) * 100) / (8 * 8)
+	srcHash, dstHash := pHash(srcImage), pHash(destImage)
+	diffBitCount := 0
+	value := srcHash ^ dstHash
+	for value != 0 {
+		diffBitCount++
+		value >>= 1
+	}
+	return (8*8 - diffBitCount) * 100 / (8 * 8)
 }
 
-func pHash(img image.Image) string {
-	resizeImg := resize.Resize(Width, Height, img, resize.Lanczos3)
+func pHash(img image.Image) uint64 {
+	// resize.Lanczos2 适合缩小
+	// resize.Lanczos3 适合放大
+	resizeImg := resize.Resize(Width, Height, img, resize.Lanczos2)
 	grayImg := grayingImage(resizeImg)
 	imgMatrix := grayMatrix(grayImg)
 	var resultMatrix [Height][Width]float64
@@ -78,17 +85,16 @@ func pHash(img image.Image) string {
 		}
 	}
 	avg := sum / (8 * 8)
-	sb := strings.Builder{}
+	var hash uint64 = 0
 	for i := 0; i < 8; i++ {
 		for j := 0; j < 8; j++ {
-			if resultMatrix[i][j] < avg {
-				sb.WriteByte('0')
-			} else {
-				sb.WriteByte('1')
+			hash <<= 1
+			if resultMatrix[i][j] >= avg {
+				hash |= 1
 			}
 		}
 	}
-	return sb.String()
+	return hash
 }
 
 func grayingImage(img image.Image) image.Image {
@@ -116,21 +122,6 @@ func grayMatrix(img image.Image) *[Height][Width]float64 {
 		}
 	}
 	return &matrix
-}
-
-func hmDistance(src, dst string) int {
-	if len(src) != len(dst) {
-		panic("abnormal string length")
-	}
-	distance := 0
-	srcBytes := []byte(src)
-	dstBytes := []byte(dst)
-	for i, c := range srcBytes {
-		if dstBytes[i] != c {
-			distance++
-		}
-	}
-	return distance
 }
 
 func dct(DCTMatrix, Matrix *[Height][Width]float64, M, N int) {
